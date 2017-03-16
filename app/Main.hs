@@ -47,7 +47,7 @@ doublets l1@(_:l2@(_:_)) = zip l1 l2
 doublets _ = []
 
 distances :: [PathVertex] -> [Double]
-distances = doublets >>> fmap (uncurry haversine)
+distances = fmap (uncurry haversine) . doublets 
 
 triplets :: [a] -> [(a, a, a)]
 triplets l1@(_:l2@(_:l3@(_:_))) = zip3 l1 l2 l3
@@ -72,6 +72,11 @@ deviation vx1 vx2 vx3 = haversine vx2 vxM
     where ts2 = ts vx2
           vxM = middlePoint vx1 vx3 ts2
 
+filterByDeviation :: Double -> [PathVertex] -> [(PathVertex, Double)]
+filterByDeviation maxDev vxs = filter p $ vxs `zip` deviations
+    where deviations = uncurryN deviation `fmap` triplets vxs 
+          p (vx, d) = d > maxDev
+
 asPrintedLines :: Show a => [a] -> [C.ByteString]
 asPrintedLines = fmap $ C.pack . show
 
@@ -79,6 +84,6 @@ main :: IO ()
 main = C.interact $
     C.lines >>>
     linesAsVertices >>>
-    deviations >>>
+    filterByDeviation 1.0 >>>
     asPrintedLines >>>
     C.unlines
