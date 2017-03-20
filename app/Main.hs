@@ -146,7 +146,10 @@ main = C.interact $
     asPrintedLines >>>
     C.unlines
 
-vx1 = PathVertex {ts = 0, lon = 15, lat = 0, alt = 0}
-vx2 = PathVertex {ts = 0, lon = 0, lat = 0, alt = 0}
-vx3 = PathVertex {ts = 0, lon = 0, lat = 15, alt = 0}
+vx1 = PathVertex {ts = 0, lon = 180, lat = 0, alt = 0}
+vx2 = PathVertex {ts = 0, lon = 1, lat = 0, alt = 0}
+vx3 = PathVertex {ts = 0, lon = 10, lat = -90, alt = 0}
 
+a = angDistance vx1 vx2
+b = angDistance vx2 vx3
+c = angDistance vx1 vx3
