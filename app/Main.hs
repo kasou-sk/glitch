@@ -14,8 +14,9 @@ import Control.Arrow
 --import Data.Angle
 import Data.Maybe
 import Data.Tuple.Curry
+import Control.Lens
 
-data PathVertex = PathVertex { ts :: Int
+data PathVertex = PathVertex { ts :: Double
                              , lon :: Double
                              , lat :: Double
                              , alt :: Double
@@ -100,39 +101,35 @@ triplets :: [a] -> [(a, a, a)]
 triplets l1@(_:l2@(_:l3@(_:_))) = zip3 l1 l2 l3
 triplets _ = []
 
-middlePoint :: PathVertex -> PathVertex -> Int -> PathVertex
+middlePoint :: PathVertex -> PathVertex -> Double -> PathVertex
 middlePoint vx1 vx3 ts2 = PathVertex { ts = ts2
                                      , lon = middleVal lon
                                      , lat = middleVal lat
                                      , alt = middleVal alt
                                      }
-    where dts13 = fromIntegral $ ts vx3 - ts vx1
-          dts12 = fromIntegral $ ts2 - ts vx1
-          dts23 = fromIntegral $ ts vx3 - ts2
+    where dts13 = ts vx3 - ts vx1
+          dts12 = ts2 - ts vx1
+          dts23 = ts vx3 - ts2
           middleVal val = (dts23 * val vx1 + dts12 * val vx3) / dts13
 
-deviations :: [PathVertex] -> [Double]
-deviations = triplets >>> fmap (uncurryN deviation)
 
 deviation:: PathVertex -> PathVertex -> PathVertex -> Double
 deviation vx1 vx2 vx3 = distance vx1 vxM
     where ts2 = ts vx2
           vxM = middlePoint vx1 vx3 ts2
 
-filterByDeviation :: Double -> [(PathVertex, Double)] -> [(PathVertex, Double)]
-filterByDeviation maxDev = filter p 
-    where p (vx, d) = d > maxDev
-
-deviationTuples :: [PathVertex] -> [(PathVertex, Double)]
+deviationTuples :: [PathVertex] -> [(Int, Double)]
 deviationTuples vxs = zipWith toTuple vxs3 deviations
     where vxs3 = triplets vxs
           deviations = uncurryN deviation `fmap` vxs3
-          toTuple (vx1, vx2, vx3) dev = (vx2, dev)
+          toTuple (_, vx2, _) dev = (floor $ ts vx2, dev)
 
---filterByDeviation :: Double -> [PathVertex] -> [(PathVertex, Double)]
---filterByDeviation maxDev vxs = filter p $ vxs `zip` deviations
---    where deviations = uncurryN deviation `fmap` triplets vxs 
---          p (vx, d) = d > maxDev
+speedTuples:: [PathVertex] -> [((Int, Int), Double)]
+speedTuples = fmap (\(vx1, vx2) -> ((floor $ ts vx1, floor $ ts vx2), haversine vx1 vx2 / (ts vx2 - ts vx1))) . doublets 
+
+filterBySndLarger:: Double -> [(a, Double)] -> [(a, Double)]
+filterBySndLarger trsh = filter p 
+    where p (_, d) = d > trsh
 
 asPrintedLines :: Show a => [a] -> [C.ByteString]
 asPrintedLines = fmap $ C.pack . show
@@ -142,14 +139,9 @@ main = C.interact $
     C.lines >>>
     linesAsVertices >>>
     deviationTuples >>>
-    filterByDeviation 1000.0 >>>
+    filterBySndLarger 1.0 >>>
+    --speedTuples >>>
+    --filterBySndLarger 30.0 >>>
     asPrintedLines >>>
     C.unlines
 
-vx1 = PathVertex {ts = 0, lon = 180, lat = 0, alt = 0}
-vx2 = PathVertex {ts = 0, lon = 1, lat = 0, alt = 0}
-vx3 = PathVertex {ts = 0, lon = 10, lat = -90, alt = 0}
-
-a = angDistance vx1 vx2
-b = angDistance vx2 vx3
-c = angDistance vx1 vx3
