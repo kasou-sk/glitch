@@ -106,6 +106,17 @@ haversine start end = let r = 6371000 :: Double
 linesAsVertices :: [C.ByteString] -> [PathVertex]
 linesAsVertices = fmap decode >>> catMaybes
 
+--doublets :: [a] -> [(a, a)]
+--doublets l1@(_:l2@(_:_)) = zip l1 l2
+--doublets _ = []
+
+--distances :: [PathVertex] -> [Double]
+--distances = fmap (uncurry haversine) . doublets 
+
+--triplets :: [a] -> [(a, a, a)]
+--triplets l1@(_:l2@(_:l3@(_:_))) = zip3 l1 l2 l3
+--triplets _ = []
+
 data InnerItem a = InnerItem { _prev :: a
                              , _self :: a
                              , _next :: a
@@ -153,9 +164,10 @@ angleCos ii = sphericalAngleCos a b c
 
 
 speed :: InnerItem PathVertex -> Double
-speed ii = distance vxPrev vxSelf / (vxSelf^.ts - vxPrev^.ts)
+speed ii = (distance vxPrev vxSelf + distance vxSelf vxNext) / (vxNext^.ts - vxPrev^.ts)
     where vxSelf = ii^.self
           vxPrev = ii^.prev
+          vxNext = ii^.next
 
 toTuple :: InnerItem PathVertex -> (Int, Double, Double, Double)
 toTuple ii = (tsInt, deviation ii, angleCos ii, speed ii)
@@ -170,8 +182,8 @@ main = C.interact $
     linesAsVertices >>>
     asInnerItems >>>
     map toTuple >>>
-    map (\(t,d,a,s) -> (t,d,a,s,d*(1-a*a))) >>>
-    filter (\(_,_,_,_,e) -> e > 1) >>>
+    map (\(t,d,a,s) -> (t,d,a,s,d*(1+a)*(1+a)/sqrt(s))) >>>
+    filter (\(_,_,_,_,e) -> e > 0.1) >>>
     asPrintedLines >>>
     C.unlines
 
