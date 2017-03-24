@@ -26,7 +26,7 @@ data PathVertex = PathVertex { _ts :: Int
 makeLenses ''PathVertex
 
 instance ToJSON PathVertex where
-    toEncoding = genericToEncoding defaultOptions
+    --toEncoding = genericToEncoding defaultOptions
     toJSON PathVertex{..} = object [ "ts" .= _ts
                                    , "lon" .= _lon
                                    , "lat" .= _lat
@@ -224,6 +224,9 @@ dropGlitches [] = []
 skipEmpty toDo [] = []
 skipEmpty toDo xs = toDo xs
 
+ivToJsLine :: PathVertex -> C.ByteString
+ivToJsLine vx = C.pack $ "{ts:" ++ (show $ vx^.ts) ++ ",lat:" ++ (show $ vx^.lat) ++ ",lng:" ++ (show $ vx^.lon) ++ "},"
+
 devNull _ = Nothing
 
 main :: IO ()
@@ -244,6 +247,10 @@ main = C.interact $
             )
     ) >>>
     catMaybes >>>
-    asPrintedLines >>>
+    concatMap (
+        map (ivToJsLine . _self) >>>
+        ("addPolyLine([" :) >>>
+        (++ ["]);"])
+    ) >>>
     C.unlines
 
